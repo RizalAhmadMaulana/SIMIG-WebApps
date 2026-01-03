@@ -131,6 +131,7 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite Localhost
     "http://localhost:3000",  # React Default
+    "https://simig-webapps-production.up.railway.app/",
     # Tambahkan URL Frontend Railway kamu nanti di sini setelah deploy
     # Contoh: "https://simig-frontend.up.railway.app"
 ]
