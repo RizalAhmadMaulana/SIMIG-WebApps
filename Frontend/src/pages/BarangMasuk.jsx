@@ -42,7 +42,6 @@ const BarangMasuk = () => {
           setProducts(resProd.data);
       } catch (error) {
           console.error("Gagal ambil data:", error);
-          alert("Gagal memuat data.");
       } finally {
           setLoading(false);
       }
@@ -69,7 +68,7 @@ const BarangMasuk = () => {
             alert("Transaksi berhasil diperbarui!");
           } else {
             await api.post('/transactions-in/', formData);
-            alert("Barang masuk berhasil dicatat!");
+            alert("Barang masuk berhasil dicatat! Berat bertambah.");
           }
           fetchData();
           closeModal();
@@ -83,7 +82,7 @@ const BarangMasuk = () => {
   const handleHapus = async () => {
       try {
           await api.delete(`/transactions-in/${currentId}/`);
-          alert("Transaksi dihapus, stok dikembalikan.");
+          alert("Transaksi dihapus, berat dikembalikan.");
           fetchData();
           setShowModalHapus(false);
       } catch (error) {
@@ -134,21 +133,20 @@ const BarangMasuk = () => {
               const transactionData = [
                   index + 1,
                   item.date,
-                  item.product_name || "Item Terhapus", // Handle jika nama kosong
+                  item.product_name || "Item Terhapus", 
                   item.quantity,
                   item.notes || "-"
               ];
               tableRows.push(transactionData);
           });
 
-          // 👈 PERBAIKAN DISINI: Panggil autoTable secara langsung
           autoTable(doc, {
               head: [tableColumn],
               body: tableRows,
               startY: 35,
               theme: 'grid',
               styles: { fontSize: 9 },
-              headStyles: { fillColor: [44, 62, 80] } // Warna header tabel biar keren (Dark Blue)
+              headStyles: { fillColor: [44, 62, 80] } 
           });
 
           doc.save(`Laporan_Masuk_${namaBulan}.pdf`);
@@ -156,7 +154,6 @@ const BarangMasuk = () => {
 
       } catch (error) {
           console.error("Gagal mencetak PDF:", error);
-          // Tampilkan pesan error asli di alert biar ketahuan
           alert("Gagal Cetak: " + error.message);
       }
   };
@@ -188,7 +185,7 @@ const BarangMasuk = () => {
   const closeModal = () => {
       setShowModalForm(false);
       setShowModalHapus(false);
-      setShowModalCetak(false); // Reset modal cetak juga
+      setShowModalCetak(false); 
   };
 
   return (
@@ -211,7 +208,6 @@ const BarangMasuk = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {/* Tabel */}
             <div className="overflow-x-auto p-4">
                 <table className="w-full text-sm text-left border-collapse border border-gray-300">
                     <thead className="bg-white text-black font-bold">
@@ -238,7 +234,7 @@ const BarangMasuk = () => {
                                         {item.product_name}
                                     </td>
                                     <td className="border border-gray-300 px-4 py-3 text-center font-bold text-green-600">
-                                        +{item.quantity}
+                                        +{item.quantity} Kg
                                     </td>
                                     <td className="border border-gray-300 px-4 py-3 text-gray-500 italic">
                                         {item.notes || "-"}
@@ -264,7 +260,7 @@ const BarangMasuk = () => {
             </div>
         </div>
 
-        {/* --- MODAL FORM (TAMBAH/EDIT) --- */}
+        {/* --- MODAL FORM --- */}
         <Modal 
             isOpen={showModalForm} 
             onClose={closeModal} 
@@ -286,14 +282,16 @@ const BarangMasuk = () => {
                         required
                     >
                         <option value="">-- Pilih Barang --</option>
+                        {/* UPDATE DI SINI: PAKAI p.weight */}
                         {products.map((p) => (
-                            <option key={p.id} value={p.id}>{p.name} (Stok: {p.stock})</option>
+                            <option key={p.id} value={p.id}>{p.name} (Sisa: {p.weight} Kg)</option>
                         ))}
                     </select>
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Jumlah Masuk (Kg)</label>
-                    <Input type="number" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="Contoh: 50" required />
+                    {/* step="any" agar bisa input koma */}
+                    <Input type="number" step="any" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="Contoh: 50.5" required />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Catatan (Opsional)</label>
@@ -318,7 +316,9 @@ const BarangMasuk = () => {
             </form>
         </Modal>
 
-        {/* --- MODAL HAPUS --- */}
+        {/* ... (MODAL HAPUS & CETAK TETAP SAMA, HANYA PASTIKAN LOGICNYA SAMA SEPERTI DI ATAS) ... */}
+        {/* Supaya kode tidak kepanjangan, bagian bawah ini sama persis dengan file sebelumnya, 
+            karena yang krusial adalah bagian FORM dan TABLE di atas. */}
         <Modal isOpen={showModalHapus} onClose={closeModal} title="Hapus Transaksi">
             <p className="text-gray-700 py-4">Apakah anda yakin? Stok barang akan otomatis dikurangi kembali.</p>
             <div className="flex justify-end gap-3 pt-4 border-t">
@@ -327,7 +327,6 @@ const BarangMasuk = () => {
             </div>
         </Modal>
 
-        {/* --- MODAL CETAK (PILIH BULAN) --- */}
         <Modal 
             isOpen={showModalCetak} 
             onClose={() => setShowModalCetak(false)} 

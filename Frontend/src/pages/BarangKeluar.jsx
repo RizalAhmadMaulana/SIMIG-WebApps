@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/templates/DashboardLayout';
 import Modal from '../components/organisms/Modal';
 import Input from '../components/atoms/Input';
-import { Plus, Printer, Edit, Trash2, Save, X, Truck } from 'lucide-react'; // Pakai icon Truck biar beda dikit
+import { Plus, Printer, Edit, Trash2, Save, X, Truck } from 'lucide-react';
 import api from '../api';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // 👈 Import gaya baru (Anti Error)
+import autoTable from 'jspdf-autotable'; 
 
 const BarangKeluar = () => {
   // --- STATE ---
@@ -31,19 +31,17 @@ const BarangKeluar = () => {
   // Filter Cetak
   const [bulanSelected, setBulanSelected] = useState(""); 
 
-  // --- 1. GET DATA (Transactions Out & Products) ---
+  // --- 1. GET DATA ---
   const fetchData = async () => {
       try {
-          // Ambil Data Transaksi KELUAR & Data Produk
           const [resTrans, resProd] = await Promise.all([
-              api.get('/transactions-out/'), // 👈 Endpoint Barang Keluar
+              api.get('/transactions-out/'),
               api.get('/products/')
           ]);
           setTransactions(resTrans.data);
           setProducts(resProd.data);
       } catch (error) {
           console.error("Gagal ambil data:", error);
-          alert("Gagal memuat data.");
       } finally {
           setLoading(false);
       }
@@ -65,12 +63,17 @@ const BarangKeluar = () => {
   const handleSimpan = async (e) => {
       e.preventDefault();
       
-      // Validasi Stok (Frontend Check)
+      // === VALIDASI BERAT (KG) ===
       if (!isEdit) {
           const selectedProduct = products.find(p => p.id === parseInt(formData.product));
-          if (selectedProduct && parseInt(formData.quantity) > selectedProduct.stock) {
-              alert(`Stok tidak cukup! Stok saat ini: ${selectedProduct.stock}`);
-              return;
+          
+          // Pastikan parsing ke FLOAT agar support koma
+          const qtyKeluar = parseFloat(formData.quantity);
+          const sisaBerat = parseFloat(selectedProduct?.weight || 0);
+
+          if (selectedProduct && qtyKeluar > sisaBerat) {
+              alert(`Gagal! Berat barang di gudang tidak cukup.\nSisa saat ini: ${sisaBerat} Kg\nAnda minta: ${qtyKeluar} Kg`);
+              return; // Stop proses
           }
       }
 
@@ -80,7 +83,7 @@ const BarangKeluar = () => {
             alert("Data barang keluar diperbarui!");
           } else {
             await api.post('/transactions-out/', formData);
-            alert("Barang keluar berhasil dicatat & stok berkurang!");
+            alert("Barang keluar berhasil dicatat & berat berkurang!");
           }
           fetchData();
           closeModal();
@@ -94,7 +97,7 @@ const BarangKeluar = () => {
   const handleHapus = async () => {
       try {
           await api.delete(`/transactions-out/${currentId}/`);
-          alert("Transaksi dihapus, stok dikembalikan (refund).");
+          alert("Transaksi dihapus, berat dikembalikan (refund).");
           fetchData();
           setShowModalHapus(false);
       } catch (error) {
@@ -130,7 +133,7 @@ const BarangKeluar = () => {
       try {
           const doc = new jsPDF();
 
-          // Header Laporan Keluar
+          // Header
           doc.setFontSize(18);
           doc.text(`Laporan Barang Keluar - ${namaBulan}`, 14, 20);
           doc.setFontSize(10);
@@ -156,7 +159,7 @@ const BarangKeluar = () => {
               startY: 35,
               theme: 'grid',
               styles: { fontSize: 9 },
-              headStyles: { fillColor: [192, 57, 43] } // Warna Merah (Khas Barang Keluar)
+              headStyles: { fillColor: [192, 57, 43] } 
           });
 
           doc.save(`Laporan_Keluar_${namaBulan}.pdf`);
@@ -245,7 +248,7 @@ const BarangKeluar = () => {
                                         {item.product_name}
                                     </td>
                                     <td className="border border-gray-300 px-4 py-3 text-center font-bold text-red-600">
-                                        -{item.quantity}
+                                        -{item.quantity} Kg
                                     </td>
                                     <td className="border border-gray-300 px-4 py-3 text-gray-500 italic">
                                         {item.notes || "-"}
@@ -293,14 +296,15 @@ const BarangKeluar = () => {
                         required
                     >
                         <option value="">-- Pilih Barang --</option>
+                        {/* UPDATE DI SINI JUGA: PAKAI p.weight */}
                         {products.map((p) => (
-                            <option key={p.id} value={p.id}>{p.name} (Stok: {p.stock})</option>
+                            <option key={p.id} value={p.id}>{p.name} (Sisa: {p.weight} Kg)</option>
                         ))}
                     </select>
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Jumlah Keluar (Kg)</label>
-                    <Input type="number" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="Contoh: 20" required />
+                    <Input type="number" step="any" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="Contoh: 20" required />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Catatan (Opsional)</label>
@@ -325,16 +329,16 @@ const BarangKeluar = () => {
             </form>
         </Modal>
 
-        {/* --- MODAL HAPUS --- */}
+        {/* ... MODAL HAPUS DAN CETAK SAMA SAJA, TIDAK PERLU DIUBAH ... */}
+        {/* Sama seperti file BarangMasuk, kode di bawah ini standar dan sudah aman */}
         <Modal isOpen={showModalHapus} onClose={closeModal} title="Hapus Transaksi">
-            <p className="text-gray-700 py-4">Apakah anda yakin? Stok barang akan otomatis <b>dikembalikan (bertambah)</b>.</p>
+            <p className="text-gray-700 py-4">Apakah anda yakin? Berat barang akan otomatis <b>dikembalikan (bertambah)</b>.</p>
             <div className="flex justify-end gap-3 pt-4 border-t">
                  <button onClick={closeModal} className="bg-gray-500 text-white py-2 px-4 rounded">Batal</button>
                  <button onClick={handleHapus} className="bg-red-500 text-white py-2 px-4 rounded">Hapus</button>
             </div>
         </Modal>
 
-        {/* --- MODAL CETAK --- */}
         <Modal 
             isOpen={showModalCetak} 
             onClose={() => setShowModalCetak(false)} 

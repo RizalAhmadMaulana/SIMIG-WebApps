@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../components/templates/DashboardLayout';
-import StatCard from '../components/molecules/StatCard'; // Pastikan file ini sudah dibuat
+import StatCard from '../components/molecules/StatCard'; 
 import api from '../api';
-import { Wallet, Package, AlertTriangle, ArrowUp } from 'lucide-react'; // Icon pemanis
+import { Wallet, Package, AlertTriangle, ArrowUp } from 'lucide-react'; 
 
 const Beranda = () => {
-  // --- STATE DATA ---
   const [data, setData] = useState({
     total_asset: 0,
-    total_stock: 0,
+    total_stock: 0, // Ini sekarang adalah Total Berat (Kg)
     lowest_stock_item: { name: '-', stock: 0 },
     income_month: 0,
     recent_in: [],
@@ -16,7 +15,6 @@ const Beranda = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // --- GET DATA API ---
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -32,7 +30,6 @@ const Beranda = () => {
     fetchDashboard();
   }, []);
 
-  // Format Rupiah
   const formatRp = (val) => "Rp " + new Intl.NumberFormat("id-ID").format(val);
 
   return (
@@ -55,16 +52,16 @@ const Beranda = () => {
                 colorClass="bg-[#22C55E]" 
                 icon={<ArrowUp className="w-6 h-6" />}
             />
+            {/* LABEL DIUBAH */}
             <StatCard 
-                title="Total Stok Barang" 
-                value={loading ? "..." : `${data.total_stock} Kg`} 
+                title="Total Berat Gudang" 
+                value={loading ? "..." : `${parseFloat(data.total_stock).toFixed(2)} Kg`} 
                 colorClass="bg-[#FACC15]" 
                 icon={<Package className="w-6 h-6" />}
             />
             <StatCard 
                 title="Stok Menipis" 
-                // Logic: Tampilkan nama barang yang stoknya paling sedikit
-                value={loading ? "..." : (data.lowest_stock_item.stock === 0 && data.lowest_stock_item.name === '-') ? "Aman" : `${data.lowest_stock_item.name} (${data.lowest_stock_item.stock})`} 
+                value={loading ? "..." : (parseFloat(data.lowest_stock_item.stock) <= 0 && data.lowest_stock_item.name === '-') ? "Aman" : `${data.lowest_stock_item.name} (${parseFloat(data.lowest_stock_item.stock).toFixed(2)} Kg)`} 
                 colorClass="bg-[#EF4444]" 
                 icon={<AlertTriangle className="w-6 h-6" />}
             />
@@ -95,7 +92,7 @@ const Beranda = () => {
                                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                     <td className="border border-gray-300 px-4 py-3">{item.date}</td>
                                     <td className="border border-gray-300 px-4 py-3 font-medium text-gray-800">{item.product_name}</td>
-                                    <td className="border border-gray-300 px-4 py-3 font-bold text-green-600">+{item.quantity}</td>
+                                    <td className="border border-gray-300 px-4 py-3 font-bold text-green-600">+{item.quantity} Kg</td>
                                     <td className="border border-gray-300 px-4 py-3 text-gray-500 italic">{item.notes || "-"}</td>
                                 </tr>
                             ))
@@ -106,7 +103,6 @@ const Beranda = () => {
         </div>
 
         {/* --- SECTION 3: TABEL BARANG KELUAR --- */}
-        {/* Saya ganti border color jadi Merah (#EF4444) biar sesuai konteks Barang Keluar */}
         <div className="bg-white rounded shadow-sm mb-8 border-t-4 border-[#EF4444]">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="font-bold text-lg text-black">Barang keluar bulan ini</h3>
@@ -131,7 +127,7 @@ const Beranda = () => {
                                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                     <td className="border border-gray-300 px-4 py-3">{item.date}</td>
                                     <td className="border border-gray-300 px-4 py-3 font-medium text-gray-800">{item.product_name}</td>
-                                    <td className="border border-gray-300 px-4 py-3 font-bold text-red-600">-{item.quantity}</td>
+                                    <td className="border border-gray-300 px-4 py-3 font-bold text-red-600">-{item.quantity} Kg</td>
                                     <td className="border border-gray-300 px-4 py-3 text-gray-500 italic">{item.notes || "-"}</td>
                                 </tr>
                             ))

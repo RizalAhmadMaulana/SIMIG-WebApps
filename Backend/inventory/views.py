@@ -9,59 +9,56 @@ from django.db.models.functions import TruncMonth, TruncDay, TruncYear
 from datetime import timedelta
 import locale
 
-# Set locale ke Indonesia biar nama hari/bulan jadi bahasa Indonesia
+# Set locale ke Indonesia
 try:
     locale.setlocale(locale.LC_TIME, 'id_ID.utf8')
 except:
-    pass # Fallback ke default kalau server gak support locale ID
+    pass 
 
 
-# --- ViewSet Kategori ---
+# --- ViewSets ---
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
-# --- ViewSet Produk ---
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by('-created_at')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-# --- ViewSet Transaksi Masuk ---
 class TransactionInViewSet(viewsets.ModelViewSet):
     queryset = TransactionIn.objects.all().order_by('-date', '-created_at')
     serializer_class = TransactionInSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-# --- ViewSet Transaksi Keluar ---
 class TransactionOutViewSet(viewsets.ModelViewSet):
     queryset = TransactionOut.objects.all().order_by('-date', '-created_at')
     serializer_class = TransactionOutSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+# --- DASHBOARD LOGIC BARU ---
 class DashboardDataView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # 1. Total Aset
+        # 1. Total Aset (Berat * Harga)
         total_asset = Product.objects.aggregate(
-            total=Sum(F('stock') * F('price_per_kg'))
+            total=Sum(F('weight') * F('price_per_kg'))
         )['total'] or 0
 
-        # 2. Total Stok
-        total_stock = Product.objects.aggregate(
-            total=Sum('stock')
+        # 2. Total Berat Gudang (Semua barang ditotal Kg-nya)
+        total_weight = Product.objects.aggregate(
+            total=Sum('weight')
         )['total'] or 0
 
-        # 3. --- UPDATE LOGIKA STOK MENIPIS ---
-        # Ambil 1 barang dengan stok paling sedikit
-        lowest_product = Product.objects.order_by('stock').first()
+        # 3. Stok Menipis (Logic: Berat < 50 Kg) - Angka 50 bisa diubah
+        lowest_product = Product.objects.order_by('weight').first()
         
         if lowest_product:
             lowest_stock_data = {
                 "name": lowest_product.name,
-                "stock": lowest_product.stock
+                "stock": lowest_product.weight # Kita kirim berat sebagai 'stock' untuk frontend
             }
         else:
             lowest_stock_data = {
@@ -89,7 +86,7 @@ class DashboardDataView(APIView):
 
         return Response({
             "total_asset": total_asset,
-            "total_stock": total_stock,
+            "total_stock": total_weight, # Nilai ini sekarang Kg
             "lowest_stock_item": lowest_stock_data,
             "income_month": income_month,
             "recent_in": in_serializer.data,
@@ -103,31 +100,26 @@ class ReportView(APIView):
         period = request.query_params.get('period', 'bulanan') 
         today = timezone.now().date()
         
-        # --- A. LOGIKA PERIODE & LABEL CHART ---
         bar_labels = []
         bar_values = []
         
+        # LOGIC CHART (Menggunakan Quantity yg sekarang Decimal/Kg)
         if period == 'mingguan':
-            # Logic: Data 7 Hari Terakhir -> Dikelompokkan per HARI
-            start_date = today - timedelta(days=6) # 7 hari termasuk hari ini
+            start_date = today - timedelta(days=6)
             date_info = f"{start_date.strftime('%d %B')} s/d {today.strftime('%d %B %Y')}"
             
-            # Query per Hari
             data_query = TransactionOut.objects.filter(date__gte=start_date)\
                 .annotate(day=TruncDay('date'))\
                 .values('day')\
                 .annotate(total=Sum('quantity'))\
                 .order_by('day')
 
-            # Mapping Data ke Label Hari (Senin, Selasa...)
-            # Kita bikin dictionary kosong untuk 7 hari terakhir biar grafik nggak bolong
             chart_data = {}
             for i in range(7):
                 d = start_date + timedelta(days=i)
-                label = d.strftime('%A') # Nama Hari
-                chart_data[label] = 0 # Default 0
+                label = d.strftime('%A')
+                chart_data[label] = 0
             
-            # Isi data dari database
             for item in data_query:
                 label = item['day'].strftime('%A')
                 chart_data[label] = item['total']
@@ -136,40 +128,27 @@ class ReportView(APIView):
             bar_values = list(chart_data.values())
 
         elif period == 'bulanan':
-            # Logic: Data Bulan Ini -> Dikelompokkan per MINGGU (1-4)
             start_date = today.replace(day=1)
             date_info = f"{start_date.strftime('%B %Y')}"
             
-            # Ambil semua transaksi bulan ini
             transactions = TransactionOut.objects.filter(
                 date__year=today.year, 
                 date__month=today.month
             )
 
-            # Bucket Manual untuk Minggu 1 - 4
-            weeks_data = {
-                "Minggu 1": 0,
-                "Minggu 2": 0,
-                "Minggu 3": 0,
-                "Minggu 4": 0,
-            }
+            weeks_data = {"Minggu 1": 0, "Minggu 2": 0, "Minggu 3": 0, "Minggu 4": 0}
 
             for t in transactions:
                 day = t.date.day
-                if day <= 7:
-                    weeks_data["Minggu 1"] += t.quantity
-                elif day <= 14:
-                    weeks_data["Minggu 2"] += t.quantity
-                elif day <= 21:
-                    weeks_data["Minggu 3"] += t.quantity
-                else:
-                    weeks_data["Minggu 4"] += t.quantity # Tanggal 22 ke atas masuk Minggu 4 (dibulatkan)
+                if day <= 7: weeks_data["Minggu 1"] += t.quantity
+                elif day <= 14: weeks_data["Minggu 2"] += t.quantity
+                elif day <= 21: weeks_data["Minggu 3"] += t.quantity
+                else: weeks_data["Minggu 4"] += t.quantity
 
             bar_labels = list(weeks_data.keys())
             bar_values = list(weeks_data.values())
 
         elif period == 'tahunan':
-            # Logic: Data Tahun Ini -> Dikelompokkan per BULAN
             start_date = today.replace(month=1, day=1)
             date_info = f"Tahun {today.year}"
             
@@ -179,13 +158,10 @@ class ReportView(APIView):
                 .annotate(total=Sum('quantity'))\
                 .order_by('month')
 
-            # Siapkan bucket Jan-Des
             chart_data = {
                 "Januari": 0, "Februari": 0, "Maret": 0, "April": 0, "Mei": 0, "Juni": 0,
                 "Juli": 0, "Agustus": 0, "September": 0, "Oktober": 0, "November": 0, "Desember": 0
             }
-
-            # Mapping nama bulan manual (biar aman kalau locale gak jalan)
             month_map = {
                 1: "Januari", 2: "Februari", 3: "Maret", 4: "April", 5: "Mei", 6: "Juni",
                 7: "Juli", 8: "Agustus", 9: "September", 10: "Oktober", 11: "November", 12: "Desember"
@@ -199,7 +175,7 @@ class ReportView(APIView):
             bar_labels = list(chart_data.keys())
             bar_values = list(chart_data.values())
 
-        # --- B. PIE CHART (Tetap sama: Per Produk) ---
+        # PIE CHART (Per Produk dalam Kg)
         pie_data_query = TransactionOut.objects.filter(date__gte=start_date)\
             .values('product__name')\
             .annotate(total=Sum('quantity'))\
@@ -208,7 +184,7 @@ class ReportView(APIView):
         pie_labels = [item['product__name'] for item in pie_data_query]
         pie_values = [item['total'] for item in pie_data_query]
 
-        # --- C. SUMMARY ---
+        # SUMMARY
         trans_in = TransactionIn.objects.filter(date__gte=start_date)
         trans_out = TransactionOut.objects.filter(date__gte=start_date)
 

@@ -16,12 +16,14 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'category', 'category_name', 
-            'color', 'weight', 'price_per_kg', 'stock', 
+            'color', 'weight', 'price_per_kg', 
             'total_value', 'created_at'
+            # Field 'stock' dihapus dari sini
         ]
 
     def get_total_value(self, obj):
-        return obj.stock * obj.price_per_kg
+        # Total Aset = Berat (Kg) * Harga/Kg
+        return obj.weight * obj.price_per_kg
 
 # --- Serializer Transaksi Masuk ---
 class TransactionInSerializer(serializers.ModelSerializer):

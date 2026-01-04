@@ -12,7 +12,6 @@ const DataBarang = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // State Search (INI YANG TADI KURANG)
   const [searchTerm, setSearchTerm] = useState('');
 
   // State Modals
@@ -22,26 +21,26 @@ const DataBarang = () => {
   // State Form Data
   const [isEdit, setIsEdit] = useState(false);
   const [currentId, setCurrentId] = useState(null);
+  
+  // HAPUS STOCK DARI STATE
   const [formData, setFormData] = useState({
       name: '',
       category: '',
       color: '',
       weight: '',
       price_per_kg: '',
-      stock: ''
   });
 
   const location = useLocation(); 
 
-  // --- 1. HANDLE SEARCH DARI SIDEBAR ---
+  // --- 1. HANDLE SEARCH ---
   useEffect(() => {
-    // Kalau ada kiriman search dari Sidebar, masukkan ke state searchTerm
     if (location.state?.globalSearch) {
         setSearchTerm(location.state.globalSearch);
     }
   }, [location.state]);
 
-  // --- 2. GET DATA (READ) ---
+  // --- 2. GET DATA ---
   const fetchData = async () => {
       try {
           const [resProducts, resCategories] = await Promise.all([
@@ -61,17 +60,16 @@ const DataBarang = () => {
       fetchData();
   }, []);
 
-  // --- 3. FILTER DATA BERDASARKAN SEARCH ---
+  // --- 3. FILTER DATA ---
   const filteredProducts = products.filter((item) => {
-      if (!searchTerm) return true; // Kalau kosong, tampilkan semua
-      // Cari berdasarkan Nama Barang ATAU Kategori
+      if (!searchTerm) return true;
       return (
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.category_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
   });
 
-  // --- HANDLE INPUT FORM ---
+  // --- HANDLE INPUT ---
   const handleChange = (e) => {
       setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -110,20 +108,21 @@ const DataBarang = () => {
   // --- HELPER FUNCTIONS ---
   const openModalTambah = () => {
       setIsEdit(false);
-      setFormData({ name: '', category: '', color: '', weight: '', price_per_kg: '', stock: '' });
+      // Reset form tanpa stock
+      setFormData({ name: '', category: '', color: '', weight: '', price_per_kg: '' });
       setShowModalForm(true);
   };
 
   const openModalEdit = (item) => {
       setIsEdit(true);
       setCurrentId(item.id);
+      // Load data tanpa stock
       setFormData({
           name: item.name,
           category: item.category,
           color: item.color,
           weight: item.weight,
           price_per_kg: item.price_per_kg,
-          stock: item.stock
       });
       setShowModalForm(true);
   };
@@ -146,7 +145,6 @@ const DataBarang = () => {
             <h2 className="text-2xl font-bold text-black">Data Barang</h2>
         </div>
 
-        {/* INPUT SEARCH LOKAL (Opsional, biar user tau dia lagi cari apa) */}
         {searchTerm && (
             <div className="mb-4 flex items-center bg-blue-50 text-blue-800 px-4 py-2 rounded-lg border border-blue-200">
                 <Search className="w-4 h-4 mr-2" />
@@ -168,7 +166,6 @@ const DataBarang = () => {
         </button>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {/* Tabel Content */}
             <div className="overflow-x-auto p-4">
                 <table className="w-full text-sm text-center border-collapse border border-gray-300">
                     <thead className="bg-white text-black font-bold">
@@ -177,29 +174,29 @@ const DataBarang = () => {
                             <th className="border border-gray-300 px-4 py-3">Nama Barang</th>
                             <th className="border border-gray-300 px-4 py-3">Kategori</th>
                             <th className="border border-gray-300 px-4 py-3">Warna</th>
-                            <th className="border border-gray-300 px-4 py-3">Berat(Kg)</th>
+                            {/* GANTI LABEL JADI TOTAL BERAT */}
+                            <th className="border border-gray-300 px-4 py-3">Total Berat (Kg)</th>
                             <th className="border border-gray-300 px-4 py-3">Harga/Kg</th>
-                            <th className="border border-gray-300 px-4 py-3">Stok</th>
+                            {/* KOLOM STOK DIHAPUS */}
                             <th className="border border-gray-300 px-4 py-3">Total Nilai(Rp)</th>
                             <th className="border border-gray-300 px-4 py-3 w-32">Aksi</th>
                         </tr>
                     </thead>
                     <tbody className="text-gray-600">
                         {loading ? (
-                            <tr><td colSpan="9" className="py-4">Memuat data...</td></tr>
+                            <tr><td colSpan="8" className="py-4">Memuat data...</td></tr>
                         ) : filteredProducts.length === 0 ? (
-                            <tr><td colSpan="9" className="py-4">Data tidak ditemukan.</td></tr>
+                            <tr><td colSpan="8" className="py-4">Data tidak ditemukan.</td></tr>
                         ) : (
-                            // MAPPING DARI filteredProducts (BUKAN products LAGI)
                             filteredProducts.map((item, index) => (
                                 <tr key={item.id} className="hover:bg-gray-50">
                                     <td className="border border-gray-300 px-2 py-2">{index + 1}</td>
                                     <td className="border border-gray-300 px-2 py-2">{item.name}</td>
                                     <td className="border border-gray-300 px-2 py-2">{item.category_name}</td>
                                     <td className="border border-gray-300 px-2 py-2">{item.color}</td>
-                                    <td className="border border-gray-300 px-2 py-2">{item.weight}</td>
+                                    {/* TAMPILKAN WEIGHT */}
+                                    <td className="border border-gray-300 px-2 py-2 font-bold">{item.weight} Kg</td>
                                     <td className="border border-gray-300 px-2 py-2">{formatRp(item.price_per_kg)}</td>
-                                    <td className="border border-gray-300 px-2 py-2">{item.stock}</td>
                                     <td className="border border-gray-300 px-2 py-2 font-bold text-gray-700">{formatRp(item.total_value)}</td>
                                     <td className="border border-gray-300 px-2 py-2">
                                         <div className="flex justify-center gap-2">
@@ -260,17 +257,16 @@ const DataBarang = () => {
                     <Input name="color" value={formData.color} onChange={handleChange} placeholder="Masukkan Warna" className="py-2" />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Berat(Kg)</label>
+                    {/* INPUT BERAT SEKARANG MENJADI QUANTITY UTAMA */}
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Berat Awal (Kg)</label>
                     <Input type="number" name="weight" value={formData.weight} onChange={handleChange} placeholder="Contoh: 100" className="py-2" />
+                    <p className="text-xs text-gray-500 mt-1">*Masukkan total berat barang di gudang saat ini</p>
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Harga/Kg</label>
                     <Input type="number" name="price_per_kg" value={formData.price_per_kg} onChange={handleChange} placeholder="Contoh: 1000000" className="py-2" />
                 </div>
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Jumlah Stok Awal</label>
-                    <Input type="number" name="stock" value={formData.stock} onChange={handleChange} placeholder="Contoh: 1000" className="py-2" />
-                </div>
+                {/* INPUT STOK DIHAPUS */}
             </div>
             <div className="flex justify-end items-center mt-6 pt-4 border-t border-gray-200 gap-3">
                 <button onClick={closeModal} className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded shadow flex items-center gap-2 transition-colors">
@@ -282,7 +278,6 @@ const DataBarang = () => {
             </div>
         </Modal>
 
-        {/* MODAL HAPUS */}
         <Modal 
             isOpen={showModalHapus} 
             onClose={closeModal} 
