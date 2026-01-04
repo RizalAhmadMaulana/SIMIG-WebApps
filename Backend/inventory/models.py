@@ -1,5 +1,4 @@
-from django.db import models, transaction  # Wajib import transaction
-from django.db.models import F             # Wajib import F (untuk hitungan database)
+from django.db import models, transaction
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -13,7 +12,7 @@ class Product(models.Model):
     name = models.CharField(max_length=100)
     color = models.CharField(max_length=50, blank=True, null=True)
     
-    # Pastikan DecimalField agar bisa koma
+    # KITA PAKAI WEIGHT SEKARANG (BUKAN STOCK)
     weight = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total Berat (Kg)")
     price_per_kg = models.DecimalField(max_digits=15, decimal_places=0)
     
@@ -26,26 +25,43 @@ class Product(models.Model):
 class TransactionIn(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions_in')
     date = models.DateField()
-    quantity = models.DecimalField(max_digits=10, decimal_places=2) # Decimal agar presisi
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # --- LOGIC TAMBAH BERAT (Barang Masuk) ---
     def save(self, *args, **kwargs):
-        # Gunakan Atomic: Jika error di tengah, semua batal (aman)
+        # Pakai atomic agar database aman kalau error di tengah jalan
         with transaction.atomic():
-            is_new = self.pk is None
-            super().save(*args, **kwargs) # Simpan dulu transaksinya
-            
-            if is_new:
-                # Update langsung di Database (Lebih cepat & anti-race condition)
-                Product.objects.filter(pk=self.product.pk).update(weight=F('weight') + self.quantity)
+            # CEK: Apakah ini EDIT data lama? (Punya ID)
+            if self.pk:
+                try:
+                    # Ambil data transaksi VERSI LAMA dari database
+                    old_transaction = TransactionIn.objects.get(pk=self.pk)
+                    
+                    # LOGIKA 1: UNDO (Batalkan efek lama)
+                    # Kembalikan berat produk seperti sebelum transaksi ini ada
+                    # Contoh: 150 - 50 = 100
+                    product_lama = old_transaction.product
+                    product_lama.weight -= old_transaction.quantity
+                    product_lama.save()
+                except TransactionIn.DoesNotExist:
+                    pass 
 
-    # --- LOGIC HAPUS BERAT (Undo Barang Masuk) ---
+            # Simpan data transaksi yang BARU (Update angka 50 jadi 200 di database)
+            super().save(*args, **kwargs)
+
+            # LOGIKA 2: APPLY (Terapkan efek baru)
+            # Ambil produk terbaru (refresh agar dapat angka 100 tadi)
+            self.product.refresh_from_db()
+            # Tambahkan angka baru: 100 + 200 = 300
+            self.product.weight += self.quantity
+            self.product.save()
+
     def delete(self, *args, **kwargs):
         with transaction.atomic():
-            # Kembalikan berat (Kurangi) sebelum transaksi dihapus
-            Product.objects.filter(pk=self.product.pk).update(weight=F('weight') - self.quantity)
+            # Kalau dihapus, kembalikan stok (Kurangi)
+            self.product.weight -= self.quantity
+            self.product.save()
             super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -58,21 +74,33 @@ class TransactionOut(models.Model):
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # --- LOGIC KURANGI BERAT (Barang Keluar) ---
     def save(self, *args, **kwargs):
         with transaction.atomic():
-            is_new = self.pk is None
-            super().save(*args, **kwargs)
-            
-            if is_new:
-                # Update Kurangi Berat
-                Product.objects.filter(pk=self.product.pk).update(weight=F('weight') - self.quantity)
+            # CEK: Apakah ini EDIT?
+            if self.pk:
+                try:
+                    old_transaction = TransactionOut.objects.get(pk=self.pk)
+                    
+                    # LOGIKA 1: UNDO (Batalkan Pengurangan Lama)
+                    # Kembalikan berat (Ditambah lagi)
+                    product_lama = old_transaction.product
+                    product_lama.weight += old_transaction.quantity
+                    product_lama.save()
+                except TransactionOut.DoesNotExist:
+                    pass
 
-    # --- LOGIC KEMBALIKAN BERAT (Undo Barang Keluar) ---
+            super().save(*args, **kwargs)
+
+            # LOGIKA 2: APPLY (Kurangi dengan Angka Baru)
+            self.product.refresh_from_db()
+            self.product.weight -= self.quantity
+            self.product.save()
+
     def delete(self, *args, **kwargs):
         with transaction.atomic():
-            # Kembalikan berat (Tambah lagi karena batal keluar)
-            Product.objects.filter(pk=self.product.pk).update(weight=F('weight') + self.quantity)
+            # Kalau dihapus, kembalikan stok (Tambah lagi)
+            self.product.weight += self.quantity
+            self.product.save()
             super().delete(*args, **kwargs)
 
     def __str__(self):
