@@ -257,12 +257,6 @@ const DataBarang = () => {
                     <Input name="color" value={formData.color} onChange={handleChange} placeholder="Masukkan Warna" className="py-2" />
                 </div>
                 <div>
-                    {/* INPUT BERAT SEKARANG MENJADI QUANTITY UTAMA */}
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Berat Awal (Kg)</label>
-                    <Input type="number" name="weight" value={formData.weight} onChange={handleChange} placeholder="Contoh: 100" className="py-2" />
-                    <p className="text-xs text-gray-500 mt-1">*Masukkan total berat barang di gudang saat ini</p>
-                </div>
-                <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Harga/Kg</label>
                     <Input type="number" name="price_per_kg" value={formData.price_per_kg} onChange={handleChange} placeholder="Contoh: 1000000" className="py-2" />
                 </div>
