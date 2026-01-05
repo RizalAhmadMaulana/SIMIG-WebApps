@@ -109,7 +109,7 @@ const DataBarang = () => {
   const openModalTambah = () => {
       setIsEdit(false);
       // Reset form tanpa stock
-      setFormData({ name: '', category: '', color: '', weight: '', price_per_kg: '' });
+      setFormData({ name: '', category: '', color: '', price_per_kg: '' });
       setShowModalForm(true);
   };
 
@@ -121,7 +121,6 @@ const DataBarang = () => {
           name: item.name,
           category: item.category,
           color: item.color,
-          weight: item.weight,
           price_per_kg: item.price_per_kg,
       });
       setShowModalForm(true);
