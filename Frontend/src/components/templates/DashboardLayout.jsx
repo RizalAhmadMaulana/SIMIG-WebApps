@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import Sidebar from '../organisms/Sidebar';
 import Header from '../organisms/Header';
+import { useUser } from '../../context/userContext'; // Import Hook Context
 
 const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(true);
+  
+  // AMBIL DATA GLOBAL (Instan, tidak perlu loading lagi)
+  const { user, loading } = useUser();
 
   const handleSidebarToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -23,7 +27,12 @@ const DashboardLayout = ({ children }) => {
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300">
-        <Header toggleSidebar={handleSidebarToggle} />
+        {/* Kirim data user ke Header lewat props */}
+        <Header 
+            toggleSidebar={handleSidebarToggle} 
+            user={user} 
+            loading={loading} 
+        />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
             {children}
