@@ -5,7 +5,15 @@ from django.dispatch import receiver
 
 # Custom User Model
 class User(AbstractUser):
+    # Pilihan Role
+    ROLE_CHOICES = (
+        ('admin', 'Admin'),
+        ('user', 'User'),
+    )
+    
     full_name = models.CharField(max_length=255, blank=True, null=True)
+    # Default role adalah 'user' agar aman saat register
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
 
     def __str__(self):
         return self.username

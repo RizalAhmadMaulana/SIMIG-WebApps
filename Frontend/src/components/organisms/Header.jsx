@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import api from '../../api'; // 👈 Pastikan path import api benar (sesuaikan ../ nya)
+import api from '../../api'; 
 
 const Header = ({ toggleSidebar }) => {
   // --- STATE USER ---
   const [user, setUser] = useState({
-    username: 'Pengguna', // Default sementara loading
+    username: localStorage.getItem('username') || 'Pengguna', 
     image_url: null
   });
 
-  // --- GET DATA USER ---
+  // --- GET DATA USER TERBARU ---
   const fetchUser = async () => {
     try {
-      const response = await api.get('/profile/');
+      // PERBAIKAN: Tambahkan prefix '/users/' agar sesuai backend
+      const response = await api.get('/users/profile/');
+      
       setUser({
         username: response.data.username,
         image_url: response.data.image_url
@@ -26,8 +28,7 @@ const Header = ({ toggleSidebar }) => {
   useEffect(() => {
     fetchUser();
 
-    // Opsional: Listener agar kalau profil diedit, header ikut berubah tanpa refresh
-    // Kita manfaatkan event listener window (simple way)
+    // Listener custom agar header update otomatis tanpa refresh halaman (Opsional)
     const handleProfileUpdate = () => fetchUser();
     window.addEventListener('profile-updated', handleProfileUpdate);
 
@@ -37,7 +38,7 @@ const Header = ({ toggleSidebar }) => {
   }, []);
 
   return (
-    <header className="h-16 bg-simig-light flex items-center justify-between px-6 shadow-md z-10 flex-shrink-0">
+    <header className="h-16 bg-[#1586FF] flex items-center justify-between px-6 shadow-md z-10 flex-shrink-0">
         <div className="flex items-center">
             <button onClick={toggleSidebar} className="text-white hover:bg-blue-600 p-2 rounded focus:outline-none transition-colors">
                 <Menu className="w-6 h-6" />
@@ -53,7 +54,8 @@ const Header = ({ toggleSidebar }) => {
                 {/* --- FOTO PROFIL DINAMIS --- */}
                 <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
                     <img 
-                        src={user.image_url || `https://ui-avatars.com/api/?name=${user.username}&background=random&color=fff&background=0D5099`} 
+                        // Gunakan UI Avatars sebagai cadangan jika image_url null
+                        src={user.image_url || `https://ui-avatars.com/api/?name=${user.username}&background=random&color=fff`} 
                         alt="User" 
                         className="w-full h-full object-cover"
                     />

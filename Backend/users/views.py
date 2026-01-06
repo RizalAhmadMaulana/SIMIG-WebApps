@@ -5,8 +5,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, Profile
 from .serializers import (
     RegisterSerializer, LoginSerializer, 
-    UserProfileSerializer, ChangePasswordSerializer, ProfileImageSerializer
+    UserProfileSerializer, ChangePasswordSerializer, ProfileImageSerializer, UserManagementSerializer
 )
+from rest_framework import viewsets
+
+class IsAdminRole(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'admin'
 
 # --- 1. REGISTER VIEW ---
 class RegisterView(generics.CreateAPIView):
@@ -29,7 +34,8 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
                 'username': user.username,
                 'email': user.email,
-                'role': 'Admin' if user.is_staff else 'User',
+                # AMBIL ROLE LANGSUNG DARI DATABASE
+                'role': user.role, 
                 'id': user.id
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -44,11 +50,23 @@ class UserProfileView(APIView):
 
     def put(self, request):
         user = request.user
+        # Mencegah user mengedit role sendiri lewat API ini
+        if 'role' in request.data:
+            return Response({'detail': 'Tidak boleh ubah role.'}, status=status.HTTP_403_FORBIDDEN)
+            
         serializer = UserProfileSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# --- 3B. CURRENT USER VIEW (Endpoint /me/ untuk cek role) ---
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user, context={'request': request})
+        return Response(serializer.data)
 
 # --- 4. GANTI PASSWORD VIEW ---
 class ChangePasswordView(generics.UpdateAPIView):
@@ -80,7 +98,6 @@ class UpdateProfileImageView(generics.UpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        # request.data akan berisi file upload
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         
         if serializer.is_valid():
@@ -89,3 +106,9 @@ class UpdateProfileImageView(generics.UpdateAPIView):
             return Response({"image_url": new_image_url}, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+# --- 6. MANAJEMEN USER VIEWSET (CRUD ADMIN) ---
+class UserManagementViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserManagementSerializer
+    permission_classes = [IsAdminRole] # Hanya Role Admin yang bisa akses
