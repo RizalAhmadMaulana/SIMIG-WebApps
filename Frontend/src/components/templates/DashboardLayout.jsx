@@ -39,7 +39,7 @@ const DashboardLayout = ({ children }) => {
         </main>
 
         <footer className="bg-white border-t p-4 text-center text-xs text-gray-500">
-            &copy; 2025 Sistem SIMIG. All rights reserved.
+            &copy; 2026 Sistem SIMIG. All rights reserved.
         </footer>
       </div>
     </div>
